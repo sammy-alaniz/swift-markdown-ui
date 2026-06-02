@@ -18,6 +18,32 @@ extension InlineNode {
   }
 }
 
+extension Sequence where Element == InlineNode {
+  /// Renders the inline sequence into a single `AttributedString`.
+  ///
+  /// - Parameter resolvingFonts: When `true` (the default), `FontProperties` are
+  ///   collapsed into SwiftUI `Font` values. Pass `false` to keep `FontProperties`
+  ///   intact so they can be mapped to a different font type (e.g. `UIFont`).
+  func renderAttributedString(
+    baseURL: URL?,
+    textStyles: InlineTextStyles,
+    softBreakMode: SoftBreak.Mode,
+    attributes: AttributeContainer,
+    resolvingFonts: Bool = true
+  ) -> AttributedString {
+    var renderer = AttributedStringInlineRenderer(
+      baseURL: baseURL,
+      textStyles: textStyles,
+      softBreakMode: softBreakMode,
+      attributes: attributes
+    )
+    for inline in self {
+      renderer.render(inline)
+    }
+    return resolvingFonts ? renderer.result.resolvingFonts() : renderer.result
+  }
+}
+
 private struct AttributedStringInlineRenderer {
   var result = AttributedString()
 
