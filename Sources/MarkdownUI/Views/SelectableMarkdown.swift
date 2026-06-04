@@ -72,6 +72,7 @@ public struct SelectableMarkdown: View {
   private let highlightColors: [MarkdownHighlightColor]
   private let selectionResetID: Int
   private let onHighlight: ((MarkdownDocumentSelectionEvent, MarkdownHighlightColor) -> Void)?
+  private let onNote: ((MarkdownDocumentSelectionEvent) -> Void)?
   private let onTapHighlight: ((MarkdownDocumentHighlight) -> Void)?
   private let onTapText: (() -> Void)?
   private let onSelectionCleared: (() -> Void)?
@@ -84,6 +85,7 @@ public struct SelectableMarkdown: View {
     highlightColors: [MarkdownHighlightColor] = [],
     selectionResetID: Int = 0,
     onHighlight: ((MarkdownDocumentSelectionEvent, MarkdownHighlightColor) -> Void)? = nil,
+    onNote: ((MarkdownDocumentSelectionEvent) -> Void)? = nil,
     onTapHighlight: ((MarkdownDocumentHighlight) -> Void)? = nil,
     onTapText: (() -> Void)? = nil,
     onSelectionCleared: (() -> Void)? = nil
@@ -94,6 +96,7 @@ public struct SelectableMarkdown: View {
     self.highlightColors = highlightColors
     self.selectionResetID = selectionResetID
     self.onHighlight = onHighlight
+    self.onNote = onNote
     self.onTapHighlight = onTapHighlight
     self.onTapText = onTapText
     self.onSelectionCleared = onSelectionCleared
@@ -112,6 +115,7 @@ public struct SelectableMarkdown: View {
       highlightColors: self.highlightColors,
       selectionResetID: self.selectionResetID,
       onHighlight: self.onHighlight,
+      onNote: self.onNote,
       onTapHighlight: self.onTapHighlight,
       onTapText: self.onTapText,
       onSelectionCleared: self.onSelectionCleared
@@ -162,6 +166,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
   let highlightColors: [MarkdownHighlightColor]
   let selectionResetID: Int
   let onHighlight: ((MarkdownDocumentSelectionEvent, MarkdownHighlightColor) -> Void)?
+  let onNote: ((MarkdownDocumentSelectionEvent) -> Void)?
   let onTapHighlight: ((MarkdownDocumentHighlight) -> Void)?
   let onTapText: (() -> Void)?
   let onSelectionCleared: (() -> Void)?
@@ -173,6 +178,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
       highlightColors: highlightColors,
       selectionResetID: selectionResetID,
       onHighlight: onHighlight,
+      onNote: onNote,
       onTapHighlight: onTapHighlight,
       onTapText: onTapText,
       onSelectionCleared: onSelectionCleared
@@ -210,6 +216,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
     context.coordinator.highlightColors = highlightColors
     context.coordinator.selectionResetID = selectionResetID
     context.coordinator.onHighlight = onHighlight
+    context.coordinator.onNote = onNote
     context.coordinator.onTapHighlight = onTapHighlight
     context.coordinator.onTapText = onTapText
     context.coordinator.onSelectionCleared = onSelectionCleared
@@ -242,6 +249,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
     var highlightColors: [MarkdownHighlightColor]
     var selectionResetID: Int
     var onHighlight: ((MarkdownDocumentSelectionEvent, MarkdownHighlightColor) -> Void)?
+    var onNote: ((MarkdownDocumentSelectionEvent) -> Void)?
     var onTapHighlight: ((MarkdownDocumentHighlight) -> Void)?
     var onTapText: (() -> Void)?
     var onSelectionCleared: (() -> Void)?
@@ -253,6 +261,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
       highlightColors: [MarkdownHighlightColor],
       selectionResetID: Int,
       onHighlight: ((MarkdownDocumentSelectionEvent, MarkdownHighlightColor) -> Void)?,
+      onNote: ((MarkdownDocumentSelectionEvent) -> Void)?,
       onTapHighlight: ((MarkdownDocumentHighlight) -> Void)?,
       onTapText: (() -> Void)?,
       onSelectionCleared: (() -> Void)?
@@ -262,6 +271,7 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
       self.highlightColors = highlightColors
       self.selectionResetID = selectionResetID
       self.onHighlight = onHighlight
+      self.onNote = onNote
       self.onTapHighlight = onTapHighlight
       self.onTapText = onTapText
       self.onSelectionCleared = onSelectionCleared
@@ -272,42 +282,60 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
       editMenuForTextIn range: NSRange,
       suggestedActions: [UIMenuElement]
     ) -> UIMenu? {
-      guard let onHighlight,
-        !highlightColors.isEmpty,
-        range.length > 0
-      else {
+      guard range.length > 0 else {
         return UIMenu(children: suggestedActions)
       }
 
-      let colorActions = highlightColors.map { highlightColor in
-        UIAction(
-          title: highlightColor.name,
-          image: UIImage(systemName: "circle.fill")?
-            .withTintColor(UIColor(highlightColor.color), renderingMode: .alwaysOriginal)
-        ) { [weak self] _ in
-          guard let self,
-            let textView = self.textView,
-            range.location >= 0,
-            range.location + range.length <= (textView.text as NSString).length
-          else { return }
+      var customActions: [UIMenuElement] = []
 
-          let selected = (textView.text as NSString).substring(with: range)
-          let event = MarkdownDocumentSelectionEvent(
-            selectedText: selected,
-            range: range,
-            documentText: self.documentText
-          )
-          onHighlight(event, highlightColor)
-          self.clearSelection(in: textView, notify: true)
-        }
+      if let onNote {
+        customActions.append(
+          UIAction(
+            title: "Note",
+            image: UIImage(systemName: "note.text")
+          ) { [weak self] _ in
+            guard let self,
+              let textView = self.textView,
+              let event = self.selectionEvent(in: textView, range: range)
+            else { return }
+
+            onNote(event)
+            self.clearSelection(in: textView, notify: true)
+          }
+        )
       }
 
-      let highlightMenu = UIMenu(
-        title: "Highlight",
-        image: UIImage(systemName: "highlighter"),
-        children: colorActions
-      )
-      return UIMenu(children: [highlightMenu] + suggestedActions)
+      if let onHighlight, !highlightColors.isEmpty {
+        let colorActions = highlightColors.map { highlightColor in
+          UIAction(
+            title: highlightColor.name,
+            image: UIImage(systemName: "circle.fill")?
+              .withTintColor(UIColor(highlightColor.color), renderingMode: .alwaysOriginal)
+          ) { [weak self] _ in
+            guard let self,
+              let textView = self.textView,
+              let event = self.selectionEvent(in: textView, range: range)
+            else { return }
+
+            onHighlight(event, highlightColor)
+            self.clearSelection(in: textView, notify: true)
+          }
+        }
+
+        customActions.append(
+          UIMenu(
+            title: "Highlight",
+            image: UIImage(systemName: "highlighter"),
+            children: colorActions
+          )
+        )
+      }
+
+      guard !customActions.isEmpty else {
+        return UIMenu(children: suggestedActions)
+      }
+
+      return UIMenu(children: customActions + suggestedActions)
     }
 
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -346,6 +374,19 @@ private struct SelectableMarkdownTextView: UIViewRepresentable {
     private func hasActiveSelection(in textView: UITextView) -> Bool {
       guard let selected = textView.selectedTextRange else { return false }
       return !selected.isEmpty
+    }
+
+    private func selectionEvent(in textView: UITextView, range: NSRange) -> MarkdownDocumentSelectionEvent? {
+      guard range.location >= 0,
+        range.location + range.length <= (textView.text as NSString).length
+      else { return nil }
+
+      let selected = (textView.text as NSString).substring(with: range)
+      return MarkdownDocumentSelectionEvent(
+        selectedText: selected,
+        range: range,
+        documentText: documentText
+      )
     }
   }
 }
@@ -620,4 +661,3 @@ private struct SelectableMarkdownAttributedRenderer {
     return font
   }
 }
-
