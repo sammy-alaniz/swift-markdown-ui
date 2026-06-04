@@ -44,6 +44,7 @@ struct MarkdownTextSelectionConfiguration {
   var highlights: [MarkdownHighlight] = []
   var onHighlight: ((MarkdownTextSelectionEvent, MarkdownHighlightColor) -> Void)?
   var onTapHighlight: ((MarkdownHighlight) -> Void)?
+  var onTapText: (() -> Void)?
 }
 
 private struct MarkdownTextSelectionKey: EnvironmentKey {
@@ -72,7 +73,8 @@ extension View {
     highlightColors: [MarkdownHighlightColor] = [],
     highlights: [MarkdownHighlight] = [],
     onHighlight: ((MarkdownTextSelectionEvent, MarkdownHighlightColor) -> Void)? = nil,
-    onTapHighlight: ((MarkdownHighlight) -> Void)? = nil
+    onTapHighlight: ((MarkdownHighlight) -> Void)? = nil,
+    onTapText: (() -> Void)? = nil
   ) -> some View {
     self.environment(
       \.markdownTextSelection,
@@ -81,7 +83,8 @@ extension View {
         highlightColors: highlightColors,
         highlights: highlights,
         onHighlight: onHighlight,
-        onTapHighlight: onTapHighlight
+        onTapHighlight: onTapHighlight,
+        onTapText: onTapText
       )
     )
   }

@@ -133,9 +133,7 @@ struct SelectableTextView: UIViewRepresentable {
 
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
       guard configuration.isEnabled,
-        let onTapHighlight = configuration.onTapHighlight,
-        let textView = gesture.view as? UITextView,
-        !blockHighlights.isEmpty
+        let textView = gesture.view as? UITextView
       else { return }
 
       // Ignore taps while text is selected (let the selection UI handle it).
@@ -145,8 +143,12 @@ struct SelectableTextView: UIViewRepresentable {
       guard let position = textView.closestPosition(to: point) else { return }
       let index = textView.offset(from: textView.beginningOfDocument, to: position)
 
-      if let hit = blockHighlights.first(where: { NSLocationInRange(index, $0.range) }) {
+      if let hit = blockHighlights.first(where: { NSLocationInRange(index, $0.range) }),
+        let onTapHighlight = configuration.onTapHighlight
+      {
         onTapHighlight(hit)
+      } else {
+        configuration.onTapText?()
       }
     }
   }
