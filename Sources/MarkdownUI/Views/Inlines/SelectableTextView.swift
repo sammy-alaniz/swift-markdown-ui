@@ -41,11 +41,17 @@ struct SelectableTextView: UIViewRepresentable {
   }
 
   func updateUIView(_ textView: UITextView, context: Context) {
+    let previousSelectionResetID = context.coordinator.configuration.selectionResetID
     context.coordinator.configuration = configuration
     context.coordinator.blockText = blockText
 
     let blockHighlights = configuration.highlights.filter { $0.blockText == blockText }
     context.coordinator.blockHighlights = blockHighlights
+
+    if configuration.selectionResetID != previousSelectionResetID {
+      textView.selectedTextRange = nil
+      textView.resignFirstResponder()
+    }
 
     let styled = NSMutableAttributedString(attributedString: attributedText)
     let fullLength = styled.length
@@ -137,7 +143,12 @@ struct SelectableTextView: UIViewRepresentable {
       else { return }
 
       // Ignore taps while text is selected (let the selection UI handle it).
-      if let selected = textView.selectedTextRange, !selected.isEmpty { return }
+      if let selected = textView.selectedTextRange, !selected.isEmpty {
+        textView.selectedTextRange = nil
+        textView.resignFirstResponder()
+        configuration.onTapText?()
+        return
+      }
 
       let point = gesture.location(in: textView)
       guard let position = textView.closestPosition(to: point) else { return }

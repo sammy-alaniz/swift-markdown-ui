@@ -40,6 +40,7 @@ public struct MarkdownTextSelectionEvent: Sendable {
 
 struct MarkdownTextSelectionConfiguration {
   var isEnabled = false
+  var selectionResetID = 0
   var highlightColors: [MarkdownHighlightColor] = []
   var highlights: [MarkdownHighlight] = []
   var onHighlight: ((MarkdownTextSelectionEvent, MarkdownHighlightColor) -> Void)?
@@ -70,6 +71,7 @@ extension View {
   ///   platforms this modifier has no effect and Markdown renders as plain text.
   public func markdownTextSelection(
     enabled: Bool = true,
+    selectionResetID: Int = 0,
     highlightColors: [MarkdownHighlightColor] = [],
     highlights: [MarkdownHighlight] = [],
     onHighlight: ((MarkdownTextSelectionEvent, MarkdownHighlightColor) -> Void)? = nil,
@@ -80,6 +82,7 @@ extension View {
       \.markdownTextSelection,
       .init(
         isEnabled: enabled,
+        selectionResetID: selectionResetID,
         highlightColors: highlightColors,
         highlights: highlights,
         onHighlight: onHighlight,
